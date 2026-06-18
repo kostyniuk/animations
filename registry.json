@@ -1,0 +1,33 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "animations",
+  "homepage": "https://github.com/kostyniuk/animations",
+  "items": [
+    {
+      "name": "drift-field",
+      "type": "registry:component",
+      "title": "Drift Field",
+      "description": "An infinite, seamless background that tiles any SVG and drifts it on a pure-CSS loop. Tune tile size, speed and direction.",
+      "files": [
+        {
+          "path": "next/components/drift-field.tsx",
+          "type": "registry:component",
+          "target": "components/drift-field.tsx"
+        }
+      ]
+    },
+    {
+      "name": "sprite-field",
+      "type": "registry:component",
+      "title": "Sprite Field",
+      "description": "A canvas field of any SVG that drifts forever and springs away from the pointer. Tune density, size, speed, tints and pointer push.",
+      "files": [
+        {
+          "path": "next/components/sprite-field.tsx",
+          "type": "registry:component",
+          "target": "components/sprite-field.tsx"
+        }
+      ]
+    }
+  ]
+}
