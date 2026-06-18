@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 01 — The infinite drift: a moving grid in pure CSS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0a0b; --panel:#121214; --panel2:#17171a; --line:rgba(255,255,255,0.09);
+    --ink:#fafafa; --dim:rgba(255,255,255,0.55); --faint:rgba(255,255,255,0.34);
+    --accent:#5b9dff; --good:#6fe3b0; --bad:#ff8c9c;
+    --cube:url('assets/cube.svg');           /* tight cube — nav icon, hover-grid */
+    --cube-tile:url('assets/cube-tile.svg'); /* padded cube — the drifting tile (built-in gap) */
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); }
+  body { font-family:'Space Grotesk',system-ui,sans-serif; color:var(--ink); line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+    background:radial-gradient(120% 80% at 50% -10%, rgba(91,157,255,0.07), transparent 60%), var(--bg); }
+  .wrap { max-width:760px; margin:0 auto; padding:0 26px 120px; }
+
+  nav.top { display:flex; justify-content:space-between; align-items:center; font-size:12px;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--faint); padding:26px 0;
+    border-bottom:1px solid var(--line); margin-bottom:46px; }
+  nav.top a { color:var(--dim); text-decoration:none; } nav.top a:hover { color:var(--ink); }
+  .brand { display:flex; align-items:center; gap:9px; color:var(--ink); }
+  .brand .cube { width:17px; height:19px; background:var(--cube) center/contain no-repeat;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,0.6)); }
+
+  .eyebrow { color:var(--accent); font-size:13px; font-weight:600; letter-spacing:0.08em;
+    text-transform:uppercase; margin:0 0 14px; }
+  h1 { font-size:38px; line-height:1.12; letter-spacing:-0.02em; margin:0 0 18px; font-weight:700; }
+  .lede { font-size:18px; color:var(--dim); margin:0 0 8px; }
+  .mission-note { font-size:14px; color:var(--faint); border-left:2px solid var(--line);
+    padding-left:14px; margin:26px 0 0; }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--accent); margin:64px 0 18px; display:flex; align-items:center; gap:12px; }
+  h2 .n { color:var(--faint); font-variant-numeric:tabular-nums; }
+  h3 { font-size:19px; letter-spacing:-0.01em; margin:34px 0 10px; }
+  p { margin:0 0 16px; }
+  strong { color:var(--ink); font-weight:600; }
+  em.key { font-style:normal; color:var(--accent); font-weight:600; }
+  a.cite { color:var(--accent); text-decoration:none; border-bottom:1px dotted rgba(91,157,255,0.45); }
+  a.cite:hover { border-bottom-style:solid; }
+  code { font-family:'JetBrains Mono',monospace; font-size:0.88em; background:var(--panel2);
+    padding:2px 6px; border-radius:5px; color:#d8dee9; }
+  pre { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px;
+    overflow-x:auto; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.7; color:#cfd6e0; }
+  pre .c { color:var(--faint); } pre .k { color:#c9a7ff; } pre .p { color:#7cc7ff; } pre .v { color:var(--good); }
+  pre b.hl { color:#ffd479; font-weight:500; }
+
+  .callout { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin:22px 0; }
+  .callout .tag { font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:8px; }
+  .big-idea { background:linear-gradient(180deg, rgba(91,157,255,0.10), rgba(91,157,255,0.02));
+    border:1px solid rgba(91,157,255,0.28); }
+
+  /* ---- demo shells ---- */
+  .demo { border:1px solid var(--line); border-radius:16px; overflow:hidden; margin:22px 0; background:#060607; }
+  .demo .stage { position:relative; height:240px; overflow:hidden; background:#060607; }
+  .demo .bar { display:flex; gap:9px; align-items:center; flex-wrap:wrap; padding:12px 16px;
+    border-top:1px solid var(--line); background:var(--panel); }
+  .demo .bar .spacer { flex:1; }
+  .demo .bar .read { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--dim); }
+  .cap { padding:13px 18px; border-top:1px solid var(--line); font-size:13px; color:var(--dim); background:var(--panel); }
+  .cap b { color:var(--ink); }
+  .pill { font-size:10px; letter-spacing:0.08em; text-transform:uppercase; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .pill.css { background:rgba(111,227,176,0.14); color:var(--good); border:1px solid rgba(111,227,176,0.3); }
+
+  /* ---- the live drift (PURE CSS, incl. its controls) ---- */
+  .vh { position:absolute; opacity:0; pointer-events:none; }
+  .drift { position:absolute; inset:0; background-image:var(--cube-tile);
+    background-size:70px 70px; background-repeat:repeat; opacity:0.92;
+    animation:driftGood 13s linear infinite; }
+  /* seamless: end position = WHOLE multiples of the 70px tile (2 across, 1 down → gentle angle) */
+  @keyframes driftGood { from { background-position:0 0; } to { background-position:140px 70px; } }
+  /* broken: Y ends on 44px — not a whole tile — so it snaps 26px every loop */
+  @keyframes driftBad  { from { background-position:0 0; } to { background-position:140px 44px; } }
+  #slow:checked  ~ .stage .drift { animation-duration:42s; }
+  #break:checked ~ .stage .drift { animation-name:driftBad; }
+  /* the toggle pills, also pure CSS */
+  label.ctl { font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; padding:7px 14px;
+    border-radius:999px; border:1px solid var(--line); background:var(--panel2); color:var(--dim);
+    transition:all .15s ease; user-select:none; }
+  label.ctl:hover { color:var(--ink); border-color:rgba(255,255,255,0.25); }
+  #slow:checked  ~ .bar label[for="slow"],
+  #break:checked ~ .bar label[for="break"] { background:rgba(91,157,255,0.16); border-color:var(--accent); color:#cfe2ff; }
+  #break:checked ~ .bar .read::after { content:'snapping ✕'; color:var(--bad); }
+  #break:checked ~ .bar .read .ok { display:none; }
+
+  /* ---- hover ceiling demo (pure CSS) ---- */
+  .hovergrid { position:absolute; inset:0; display:grid;
+    grid-template-columns:repeat(7,1fr); grid-template-rows:repeat(4,1fr); }
+  .hovergrid .cell { display:grid; place-items:center; }
+  .hovergrid .cube { width:30px; height:34px; background:var(--cube) center/contain no-repeat;
+    opacity:0.78; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .45s ease; }
+  .hovergrid .cell:hover .cube { transform:translateY(-14px) scale(1.45); opacity:1; }
+
+  /* ---- quizzes ---- */
+  .quiz { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:8px 22px 22px; margin:22px 0; }
+  .q { padding:20px 0; border-bottom:1px solid var(--line); } .q:last-child { border-bottom:none; }
+  .q .stem { margin-bottom:14px; } .q .stem .num { color:var(--faint); font-variant-numeric:tabular-nums; margin-right:8px; }
+  .choices { display:flex; gap:10px; flex-wrap:wrap; }
+  .choices button { font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; padding:9px 16px;
+    border-radius:999px; border:1px solid var(--line); background:var(--panel2); color:var(--dim); transition:all .15s ease; }
+  .choices button:hover { color:var(--ink); border-color:rgba(255,255,255,0.25); }
+  .choices button.right { background:rgba(111,227,176,0.16); border-color:var(--good); color:var(--good); }
+  .choices button.wrong { background:rgba(255,140,156,0.14); border-color:var(--bad); color:var(--bad); }
+  .fb { font-size:14px; color:var(--dim); margin-top:13px; display:none; border-left:2px solid var(--accent); padding-left:13px; }
+  .fb.show { display:block; }
+
+  ul.clean { padding-left:20px; } ul.clean li { margin-bottom:8px; }
+  .ask { background:var(--panel2); border:1px dashed var(--line); border-radius:12px; padding:16px 20px;
+    margin:40px 0 0; font-size:14px; color:var(--dim); } .ask b { color:var(--ink); }
+  .footer { margin-top:70px; padding-top:26px; border-top:1px solid var(--line); display:flex; justify-content:space-between; font-size:14px; }
+  .footer a { color:var(--dim); text-decoration:none; } .footer a:hover { color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="top">
+    <span class="brand"><span class="cube"></span> Cursor-grid · Lessons</span>
+    <span><a href="0002-the-animation-loop.html">Lesson 02 →</a> &nbsp;·&nbsp; <a href="../reference/css-vs-canvas.html">Reference ↗</a></span>
+  </nav>
+
+  <p class="eyebrow">Lesson 01 · The ambient layer</p>
+  <h1>The infinite drift</h1>
+  <p class="lede">The whole field of cubes in <code>grid.html</code> slides slowly, forever, with nobody touching it. That part needs <em class="key">no JavaScript at all</em> — it's one of the most useful CSS tricks there is. This lesson is how it actually works, and you'll get to break it on purpose to see why it's built the way it is.</p>
+  <p class="mission-note">Mission: understand the techniques. We start with the half you can do in pure CSS, then mark exactly where CSS runs out and JS takes over.</p>
+
+  <!-- 1 -->
+  <h2><span class="n">01</span> The problem</h2>
+  <p>You want a grid of cubes drifting endlessly across the screen. The obvious idea — put a row of cubes in a <code>&lt;div&gt;</code> and animate it moving — falls apart fast:</p>
+  <ul class="clean">
+    <li><strong>It runs out.</strong> A finite strip of cubes slides off and leaves empty space. To never run out you'd need infinite cubes.</li>
+    <li><strong>The loop jumps.</strong> If you snap it back to the start to repeat, the viewer sees a jolt every cycle — the cubes teleport.</li>
+  </ul>
+  <p>Before CSS animations, people faked this with looping GIFs or JS timers nudging <code>scrollLeft</code>. Both are clumsy. The clean answer is a single insight about <em class="key">repetition</em>.</p>
+
+  <!-- 2 -->
+  <h2><span class="n">02</span> The idea — repeat, then slide by exactly one tile</h2>
+  <div class="callout big-idea">
+    <p style="margin:0; font-size:17px; color:var(--ink);">Tile a pattern so it repeats forever, then animate it sliding by <strong>a whole number of tiles</strong> (one, two, however many). At the end of the slide the picture is pixel-identical to the start — so when the animation loops, there's nothing to see. Infinite motion from a 2-line keyframe.</p>
+  </div>
+  <p>Two CSS features do all the work:</p>
+  <ul class="clean">
+    <li><strong>A repeating background.</strong> <code>background-image</code> + <code>background-repeat: repeat</code> tiles one cube across the entire box, infinitely, for free. There are no “cubes” as elements — it's one painted texture.</li>
+    <li><strong>Animating <code>background-position</code>.</strong> Sliding the texture's origin makes the whole tiled field move. (<a class="cite" href="https://developer.mozilla.org/en-US/docs/Web/CSS/background-position" target="_blank">MDN: background-position</a>)</li>
+  </ul>
+  <p>The magic is the <strong>seamless-loop rule</strong>. The texture repeats every <code>background-size</code> pixels — here, every <code>70px</code>. So position <code>0</code> and position <code>70px</code> (or <code>140</code>, <code>210</code>…) look <em class="key">exactly the same</em>. If your keyframe ends on a whole multiple of the tile in <em>both</em> axes, the last frame equals the first, and the jump back is invisible. Land between tiles and you get a visible hitch every loop. (<a class="cite" href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_animations/Using_CSS_animations" target="_blank">MDN: Using CSS animations</a>)</p>
+
+  <!-- 3 -->
+  <h2><span class="n">03</span> Practice — the real thing, and breaking it</h2>
+  <p>This is a working pure-CSS drift — <strong>no JavaScript, including the buttons</strong> (they're CSS checkbox toggles). Hit <b>Slow-mo</b> to study it. Then hit <b>Break the seam</b>: that swaps the keyframe to end on <code>44px</code> in Y instead of a whole <code>70px</code> tile — watch the field jolt vertically once per loop. That single number is the difference between “infinite” and “janky”.</p>
+  <div class="demo">
+    <input type="checkbox" id="slow" class="vh">
+    <input type="checkbox" id="break" class="vh">
+    <div class="stage"><div class="drift"></div></div>
+    <div class="bar">
+      <span class="pill css">CSS only</span>
+      <label for="slow" class="ctl">Slow-mo</label>
+      <label for="break" class="ctl">Break the seam</label>
+      <span class="spacer"></span>
+      <span class="read">loop: <span class="ok">seamless ✓</span></span>
+    </div>
+  </div>
+
+  <h3>The entire source</h3>
+  <p>This is all of it. Read the keyframe end values against the <code>70px</code> tile:</p>
+  <pre>.field {
+  <span class="p">background-image</span>: <span class="v">url(cube.svg)</span>;     <span class="c">/* SVG has transparent padding → built-in gap */</span>
+  <span class="p">background-size</span>: <b class="hl">70px 70px</b>;        <span class="c">/* one tile = 70×70 (cube fills ~58%, rest is gap) */</span>
+  <span class="p">background-repeat</span>: repeat;       <span class="c">/* infinite cubes, for free */</span>
+  <span class="p">animation</span>: drift 13s <b class="hl">linear</b> infinite;  <span class="c">/* linear! a constant glide, no ease */</span>
+}
+<span class="k">@keyframes</span> drift {
+  <span class="k">from</span> { <span class="p">background-position</span>: 0 0; }
+  <span class="k">to</span>   { <span class="p">background-position</span>: <b class="hl">140px 70px</b>; } <span class="c">/* 2 tiles across, 1 down: whole multiples → seamless */</span>
+}</pre>
+
+  <div class="callout">
+    <div class="tag">The thing that trips everyone up</div>
+    <p style="margin:0 0 12px;"><strong>The grid only ever moves 140px right and 70px down — then it snaps back to 0.</strong> That's the entire motion. The endless cross-screen drift is an <em class="key">illusion</em>.</p>
+    <p style="margin:0 0 12px;">There are no cubes as elements. <code>background-repeat</code> paints <em>one infinite wallpaper</em> of cubes, and <code>background-position</code> slides that whole sheet as a single unit — from offset <code>0</code> to <code>140px 70px</code>, then instantly back to <code>0</code>, forever.</p>
+    <p style="margin:0;">Why is the snap-back invisible? Because the wallpaper looks <em>pixel-identical every 70px</em>: offset&nbsp;<code>0</code> ≡ offset&nbsp;<code>70</code> ≡ offset&nbsp;<code>140</code>. When it jumps <code>140 → 0</code>, not a single pixel changes on screen, so your eye never catches the reset. Follow one cube and it travels 140px — but right as the sheet resets, an <em class="key">identical</em> cube has slid into the spot it started from and carries the journey on. It's a <strong>treadmill</strong>: short belt, identical slats, looks endless. (A barber pole is the exact same trick.)</p>
+  </div>
+
+  <p>Three details that matter, and the reasons behind them:</p>
+  <ul class="clean">
+    <li><strong>Whole-tile endpoints</strong> (<code>140 = 2×70</code>, <code>70 = 1×70</code>) → the seam is invisible. This is the rule you just broke.</li>
+    <li><strong>The X:Y ratio is the drift angle.</strong> <code>140:70</code> = 2:1 = a gentle downward slope. Want steeper? <code>70:140</code>. Want pure diagonal? <code>70:70</code>. You can only pick angles that are ratios of whole tiles — the price of seamlessness.</li>
+    <li><strong><code>linear</code> timing</strong> → constant speed. The default <code>ease</code> would speed up and slow down within each loop, making the drift visibly “breathe”.</li>
+  </ul>
+
+  <h3>Checkpoint — the seamless rule</h3>
+  <p>Tile size is <code>80px × 80px</code>. Which <code>background-position</code> end value loops with no visible jump?</p>
+  <div class="quiz" id="quiz-seam"></div>
+
+  <!-- 4 -->
+  <h2><span class="n">04</span> Boundaries — where CSS stops and JS begins</h2>
+  <p>The drift works in CSS because it's a pure <em class="key">function of time</em>: at any moment the offset is just <code>speed × time</code>, wrapped. CSS <code>@keyframes</code> is exactly that — hand it a timestamp, it returns a value, with no memory between frames. Perfect fit.</p>
+  <div class="callout big-idea">
+    <div class="tag">The deciding rule (carry this everywhere)</div>
+    <p style="margin:0; font-size:17px; color:var(--ink);">Is position a <strong>function of time</strong> (<code>pos = f(t)</code>) or an <strong>integration of state</strong> (<code>pos += velocity·dt</code>, with velocity itself changing each frame)? CSS can only ever do the first.</p>
+  </div>
+  <p>The cursor <strong>push</strong> in <code>grid.html</code> is the second kind: each frame a cube's velocity is built from last frame's velocity plus a force, then damped — that's why it has momentum and springs back. CSS has no per-frame hook to run that recurrence and no way to read “distance from this element to the pointer.”</p>
+
+  <p>You can still feel CSS's ceiling. Hover the cubes below: they lift and ease back (transitions <em>can</em> ease a state change!). But only the cube <em class="key">directly under</em> the pointer reacts — no radial falloff to neighbours, no direction-aware shove, no momentum. CSS can answer “is the pointer on me?” but never “how far, and which way should I fling?”</p>
+  <div class="demo">
+    <div class="stage"><div class="hovergrid">
+      <div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div>
+      <div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div>
+      <div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div>
+      <div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div><div class="cell"><div class="cube"></div></div>
+    </div></div>
+    <div class="cap"><span class="pill css">CSS only</span> <b>The ceiling.</b> Per-element <code>:hover</code> + transition — as far as CSS stretches toward interactivity, and it stops well short of the push.</div>
+  </div>
+
+  <h3>Checkpoint — which tool?</h3>
+  <div class="quiz" id="quiz-tool"></div>
+  <p style="font-size:14px;color:var(--dim);">Anything you marked “needs JS” is built with the animation loop — that's <a class="cite" href="0002-the-animation-loop.html">Lesson 02</a>.</p>
+
+  <!-- 5 -->
+  <h2><span class="n">05</span> Why this matters for your mission</h2>
+  <p>You wanted to understand how the moving grid works — and now you can build that half yourself, from scratch, in two CSS rules, and explain why each number is what it is. Just as importantly, you've located the exact seam in <code>grid.html</code>: the ambient drift (the <code>dx/dy</code> constants) is a function of time that CSS could own, but it's fused on the same canvas as the pointer push (an integration of state) that CSS cannot. That fusion is why the real file is canvas, not CSS — and it's the perfect on-ramp to the loop that drives it.</p>
+
+  <div class="ask">
+    <b>I'm your teacher — ask me anything.</b> Want to know how to get an arbitrary drift angle, not just whole-tile ratios? Curious whether <code>translate</code> would be smoother than <code>background-position</code> (it can be — ask why)? Or want the JS-variable “cursor glow” trick that lives between pure CSS and full canvas? Say the word.
+  </div>
+
+  <div class="footer">
+    <a href="#">Series start</a>
+    <a href="0002-the-animation-loop.html">Next: The animation loop →</a>
+  </div>
+
+</div>
+
+<script>
+  // Lesson interactivity (the DRIFT demo itself is pure CSS; these quizzes use JS — that's fine, they're not the subject).
+  function buildQuiz(rootId, items) {
+    const root = document.getElementById(rootId);
+    items.forEach((it, i) => {
+      const q = document.createElement('div'); q.className = 'q';
+      q.innerHTML = `<div class="stem"><span class="num">${String(i+1).padStart(2,'0')}</span>${it.stem}</div>`;
+      const ch = document.createElement('div'); ch.className = 'choices';
+      const fb = document.createElement('div'); fb.className = 'fb';
+      it.options.forEach(opt => {
+        const b = document.createElement('button'); b.textContent = opt.label;
+        b.onclick = () => {
+          b.className = opt.correct ? 'right' : 'wrong';
+          fb.textContent = (opt.correct ? '✓ ' : '✗ ') + it.why;
+          fb.className = 'fb show';
+          [...ch.children].forEach(x => x.disabled = true);
+          if (!opt.correct) [...ch.children].find((x,ix) => it.options[ix].correct).className = 'right';
+        };
+        ch.appendChild(b);
+      });
+      q.appendChild(ch); q.appendChild(fb); root.appendChild(q);
+    });
+  }
+
+  buildQuiz('quiz-seam', [{
+    stem: "Background tile is 80px × 80px, animating background-position. Which end value loops seamlessly?",
+    why: "Seamless needs WHOLE multiples of the 80px tile in both axes. 160px 80px = (2×80, 1×80). 160px 40px hitches in Y; 100px 100px isn't a multiple of 80 in either axis.",
+    options: [
+      { label: "160px 80px", correct: true },
+      { label: "160px 40px", correct: false },
+      { label: "100px 100px", correct: false },
+    ],
+  }]);
+
+  buildQuiz('quiz-tool', [
+    { stem: "A barber-pole stripe scrolling forever at constant speed.",
+      why: "Function of time — the Lesson 01 trick. Tile + animate background-position by one tile.",
+      options: [{ label:'Pure CSS', correct:true }, { label:'Needs JS / canvas', correct:false }] },
+    { stem: "Cubes that fling away from the cursor and coast back with momentum.",
+      why: "Momentum = velocity carried across frames = integration of state. Needs a JS loop.",
+      options: [{ label:'Pure CSS', correct:false }, { label:'Needs JS / canvas', correct:true }] },
+    { stem: "A tile that lifts while you hover it, easing back when you leave.",
+      why: "A timed transition on a state change — no per-frame memory. Pure CSS, like the ceiling demo above.",
+      options: [{ label:'Pure CSS', correct:true }, { label:'Needs JS / canvas', correct:false }] },
+  ]);
+</script>
+</body>
+</html>

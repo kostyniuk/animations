@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cursor — Grid</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #0a0a0b; }
+  * { box-sizing: border-box; }
+  #stage { position: fixed; inset: 0; overflow: hidden; background: #0a0a0b; cursor: crosshair; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .vignette { position: absolute; inset: 0; pointer-events: none; }
+  .vignette.top { background: radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.045), transparent 55%); }
+  .vignette.edge { box-shadow: inset 0 0 220px 50px rgba(0,0,0,0.6); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div class="vignette top"></div>
+  <div class="vignette edge"></div>
+</div>
+<script>
+// Tunables
+const CFG = { density: 1, size: 1, speed: 1, spectrum: false };
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rand = (a, b) => a + Math.random() * (b - a);
+const expDamp = (v, rate, dt) => v * Math.exp(-rate * dt);
+
+const mouse = { x: 0, y: 0, active: false, init: false };
+let cursors = [], grid = {}, W = 0, H = 0;
+
+// ---------- Cursor cube sprite ----------
+const S = 72, SS = 4, cen = { x: S / 2, y: S / 2 }, BASE = 30;
+let imgBox, silH = S * 0.86, spriteMono = null, spriteTints = [], spritesReady = false;
+
+function renderCube(img, tint) {
+  const b = imgBox, cnv = document.createElement('canvas');
+  cnv.width = cnv.height = S * SS;
+  const x = cnv.getContext('2d');
+  x.scale(SS, SS);
+  x.save();
+  x.shadowColor = 'rgba(180,200,255,0.5)';
+  x.shadowBlur = 5;
+  x.drawImage(img, b.dx, b.dy, b.drawW, b.drawH);
+  x.restore();
+  x.drawImage(img, b.dx, b.dy, b.drawW, b.drawH);
+  if (tint) {
+    x.globalCompositeOperation = 'multiply';
+    x.fillStyle = tint; x.fillRect(0, 0, S, S);
+    x.globalCompositeOperation = 'destination-in';
+    x.drawImage(img, b.dx, b.dy, b.drawW, b.drawH);
+    x.globalCompositeOperation = 'source-over';
+  }
+  return cnv;
+}
+
+function buildSprites() {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 466.73 532.09">' +
+    '<path fill="#f5f5f6" d="M457.43,125.94L244.42,2.96c-6.84-3.95-15.28-3.95-22.12,0L9.3,125.94c-5.75,3.32-9.3,9.46-9.3,16.11v247.99c0,6.65,3.55,12.79,9.3,16.11l213.01,122.98c6.84,3.95,15.28,3.95,22.12,0l213.01-122.98c5.75-3.32,9.3-9.46,9.3-16.11v-247.99c0-6.65-3.55-12.79-9.3-16.11h-.01ZM444.05,151.99l-205.63,356.16c-1.39,2.4-5.06,1.42-5.06-1.36v-233.21c0-4.66-2.49-8.97-6.53-11.31L24.87,145.67c-2.4-1.39-1.42-5.06,1.36-5.06h411.26c5.84,0,9.49,6.33,6.57,11.39h-.01Z"/>' +
+    '</svg>';
+  const img = new Image();
+  img.onload = () => {
+    const ratio = (img.width && img.height) ? img.width / img.height : (466.73 / 533.32);
+    const drawH = S * 0.86, drawW = drawH * ratio;
+    imgBox = { dx: (S - drawW) / 2, dy: (S - drawH) / 2, drawW, drawH };
+    silH = drawH;
+    spriteMono = renderCube(img, null);
+    spriteTints = ['#bcd4ff', '#c9bcff', '#bdeede', '#ffd0e6', '#ffe2b0', '#cdd6e2'].map(c => renderCube(img, c));
+    spritesReady = true;
+  };
+  img.src = 'data:image/svg+xml;charset=utf8,' + encodeURIComponent(svg);
+}
+
+// ---------- Grid setup ----------
+function initGrid() {
+  const gp = clamp(98 / Math.sqrt(CFG.density), 56, 160);
+  const spanX = W + gp * 2, spanY = H + gp * 2;
+  const cols = Math.max(2, Math.round(spanX / gp)), rows = Math.max(2, Math.round(spanY / gp));
+  const sx = spanX / cols, sy = spanY / rows;
+  grid = { pad: gp, spanX, spanY, vx: 18, vy: 11 };
+  cursors = [];
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      cursors.push({ x: -gp + c * sx, y: -gp + r * sy, vx: 0, vy: 0, size: 0.66, t: Math.floor(Math.random() * 6) });
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const r = canvas.getBoundingClientRect();
+  W = r.width || window.innerWidth;
+  H = r.height || window.innerHeight;
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!mouse.init) { mouse.x = W / 2; mouse.y = H / 2; mouse.init = true; }
+  initGrid();
+}
+
+// ---------- Update ----------
+function update(dt) {
+  const edt = Math.min(dt * clamp(CFG.speed, 0.05, 4), 0.06);
+  const pad = grid.pad, dx = grid.vx * edt, dy = grid.vy * edt;
+  for (const c of cursors) {
+    if (mouse.active) {
+      const ddx = c.x - mouse.x, ddy = c.y - mouse.y, dist = Math.hypot(ddx, ddy), R = 150;
+      if (dist < R) {
+        const f = 1 - dist / R, push = f * f * 3000, inv = 1 / (dist + 0.01);
+        c.vx += ddx * inv * push * edt; c.vy += ddy * inv * push * edt;
+      }
+    }
+    c.vx = expDamp(c.vx, 3.2, edt); c.vy = expDamp(c.vy, 3.2, edt);
+    c.x += dx + c.vx * edt; c.y += dy + c.vy * edt;
+    if (c.x > W + pad) c.x -= grid.spanX; if (c.x < -pad) c.x += grid.spanX;
+    if (c.y > H + pad) c.y -= grid.spanY; if (c.y < -pad) c.y += grid.spanY;
+  }
+}
+
+// ---------- Draw ----------
+function draw() {
+  ctx.fillStyle = '#0a0a0b';
+  ctx.fillRect(0, 0, W, H);
+  if (!spritesReady) return;
+  const sizeMul = clamp(CFG.size, 0.3, 3);
+  for (const c of cursors) {
+    const spr = CFG.spectrum ? spriteTints[c.t % spriteTints.length] : spriteMono;
+    const s = (c.size * BASE * sizeMul) / silH;
+    const tilt = clamp(c.vx * 0.0011, -0.3, 0.3);
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    if (tilt) ctx.rotate(tilt);
+    ctx.drawImage(spr, 0, 0, spr.width, spr.height, -cen.x * s, -cen.y * s, S * s, S * s);
+    ctx.restore();
+  }
+}
+
+// ---------- Loop ----------
+let last = performance.now();
+function loop() {
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > 0.05) dt = 0.05;
+  update(dt);
+  draw();
+}
+
+// ---------- Events ----------
+window.addEventListener('pointermove', (e) => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - r.left;
+  mouse.y = e.clientY - r.top;
+  mouse.active = true;
+}, { passive: true });
+window.addEventListener('blur', () => { mouse.active = false; });
+window.addEventListener('resize', resize);
+
+buildSprites();
+resize();
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 02 — The animation loop: how these UIs actually run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0a0b; --panel:#121214; --panel2:#17171a; --line:rgba(255,255,255,0.09);
+    --ink:#fafafa; --dim:rgba(255,255,255,0.55); --faint:rgba(255,255,255,0.34);
+    --accent:#5b9dff; --good:#6fe3b0; --bad:#ff8c9c;
+    --cube:url('assets/cube.svg');  /* tight cube — nav icon */
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); }
+  body { font-family:'Space Grotesk',system-ui,sans-serif; color:var(--ink); line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+    background:radial-gradient(120% 80% at 50% -10%, rgba(91,157,255,0.07), transparent 60%), var(--bg); }
+  .wrap { max-width:760px; margin:0 auto; padding:0 26px 120px; }
+
+  nav.top { display:flex; justify-content:space-between; align-items:center; font-size:12px;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--faint); padding:26px 0;
+    border-bottom:1px solid var(--line); margin-bottom:46px; }
+  nav.top a { color:var(--dim); text-decoration:none; } nav.top a:hover { color:var(--ink); }
+  .brand { display:flex; align-items:center; gap:9px; color:var(--ink); }
+  .brand .cube { width:17px; height:19px; background:var(--cube) center/contain no-repeat;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,0.6)); }
+
+  .eyebrow { color:var(--accent); font-size:13px; font-weight:600; letter-spacing:0.08em;
+    text-transform:uppercase; margin:0 0 14px; }
+  h1 { font-size:38px; line-height:1.12; letter-spacing:-0.02em; margin:0 0 18px; font-weight:700; }
+  .lede { font-size:18px; color:var(--dim); margin:0 0 8px; }
+  .mission-note { font-size:14px; color:var(--faint); border-left:2px solid var(--line);
+    padding-left:14px; margin:26px 0 0; }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--accent); margin:64px 0 18px; display:flex; align-items:center; gap:12px; }
+  h2 .n { color:var(--faint); font-variant-numeric:tabular-nums; }
+  h3 { font-size:19px; letter-spacing:-0.01em; margin:34px 0 10px; }
+  p { margin:0 0 16px; }
+  strong { color:var(--ink); font-weight:600; }
+  em.key { font-style:normal; color:var(--accent); font-weight:600; }
+  a.cite { color:var(--accent); text-decoration:none; border-bottom:1px dotted rgba(91,157,255,0.45); }
+  a.cite:hover { border-bottom-style:solid; }
+  code { font-family:'JetBrains Mono',monospace; font-size:0.88em; background:var(--panel2);
+    padding:2px 6px; border-radius:5px; color:#d8dee9; }
+  pre { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px;
+    overflow-x:auto; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.7; color:#cfd6e0; }
+  pre .c { color:var(--faint); } pre .k { color:#c9a7ff; } pre .s { color:var(--good); } pre .f { color:#7cc7ff; }
+
+  .callout { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin:22px 0; }
+  .callout .tag { font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:8px; }
+  .big-idea { background:linear-gradient(180deg, rgba(91,157,255,0.10), rgba(91,157,255,0.02));
+    border:1px solid rgba(91,157,255,0.28); }
+
+  .demo { border:1px solid var(--line); border-radius:16px; overflow:hidden; margin:22px 0; background:#060607; }
+  .demo .stage { position:relative; height:260px; background:#060607; }
+  .demo canvas { display:block; width:100%; height:100%; cursor:crosshair; }
+  .demo .bar { display:flex; gap:9px; align-items:center; flex-wrap:wrap; padding:12px 16px;
+    border-top:1px solid var(--line); background:var(--panel); }
+  .demo .bar .spacer { flex:1; }
+  .demo .bar .read { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--dim); }
+  .demo .bar .read b { color:var(--good); }
+  button.ctl { font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; padding:7px 14px;
+    border-radius:999px; border:1px solid var(--line); background:var(--panel2); color:var(--dim);
+    transition:all .15s ease; }
+  button.ctl:hover { color:var(--ink); border-color:rgba(255,255,255,0.25); }
+  button.ctl.on { background:rgba(91,157,255,0.16); border-color:var(--accent); color:#cfe2ff; }
+  .cap { padding:13px 18px; border-top:1px solid var(--line); font-size:13px; color:var(--dim);
+    background:var(--panel); }
+  .cap b { color:var(--ink); }
+  .twin { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+  .twin .col { position:relative; height:120px; border-right:1px solid var(--line); }
+  .twin .col:last-child { border-right:none; }
+  .twin .label { position:absolute; top:8px; left:10px; font-size:11px; letter-spacing:0.04em;
+    color:var(--faint); z-index:2; }
+  .twin .label b { color:var(--ink); }
+
+  ul.clean { padding-left:20px; } ul.clean li { margin-bottom:8px; }
+  .ask { background:var(--panel2); border:1px dashed var(--line); border-radius:12px; padding:16px 20px;
+    margin:40px 0 0; font-size:14px; color:var(--dim); } .ask b { color:var(--ink); }
+  .footer { margin-top:70px; padding-top:26px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; font-size:14px; }
+  .footer a { color:var(--dim); text-decoration:none; } .footer a:hover { color:var(--ink); }
+  .steps { counter-reset:s; padding:0; list-style:none; margin:18px 0; }
+  .steps li { counter-increment:s; position:relative; padding:0 0 18px 44px; }
+  .steps li::before { content:counter(s); position:absolute; left:0; top:-2px; width:28px; height:28px;
+    border-radius:50%; border:1px solid var(--line); display:grid; place-items:center; font-size:13px;
+    font-weight:600; color:var(--accent); background:var(--panel); }
+  .steps li b { color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="top">
+    <span class="brand"><span class="cube"></span> Cursor-grid · Lessons</span>
+    <span><a href="0001-css-infinite-drift.html">← Lesson 01</a> &nbsp;·&nbsp; <a href="../reference/css-vs-canvas.html">Reference ↗</a></span>
+  </nav>
+
+  <p class="eyebrow">Lesson 02 · How it's built</p>
+  <h1>The animation loop</h1>
+  <p class="lede">You know the push needs JavaScript because it's an <em class="key">integration of state</em>. This lesson is the machine that does the integrating — the four-line heartbeat that every effect like <code>grid.html</code> runs on. Learn this one pattern and you can build all of them.</p>
+  <p class="mission-note">Mission: understand the techniques. This is <em>the</em> technique — everything else (forces, sprites, wrapping) is decoration hung on this loop.</p>
+
+  <!-- 1 -->
+  <h2><span class="n">01</span> The problem</h2>
+  <p>You have state — a cube's position and velocity. Last lesson's rule says you must advance it yourself: <code>position += velocity · dt</code>. But that line only moves the cube <em class="key">once</em>. To get motion you have to run it again, and again, forever, and repaint after each run. Two questions fall out:</p>
+  <ul class="clean">
+    <li><strong>When do I run it?</strong> A <code>setInterval(fn, 16)</code> seems obvious — but it fires whether or not the screen is ready to paint, fights the monitor's refresh, drains battery in background tabs, and stutters. You want to run exactly when the browser is about to draw a frame.</li>
+    <li><strong>How much do I move per run?</strong> If you hardcode “move 3px each run”, your animation runs at one speed on a 60Hz laptop and <em class="key">nearly double</em> on a 120Hz phone. The cube's speed becomes an accident of the user's hardware.</li>
+  </ul>
+  <p>The animation loop answers both: <a class="cite" href="https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame" target="_blank"><code>requestAnimationFrame</code></a> for <em>when</em>, and a measured <strong>delta time</strong> (<code>dt</code>) for <em>how much</em>.</p>
+
+  <!-- 2 -->
+  <h2><span class="n">02</span> The idea — a four-beat heartbeat</h2>
+  <div class="callout big-idea">
+    <p style="margin:0; font-size:17px; color:var(--ink);">Ask the browser to call you right before it paints. Measure how long since last time. Advance the world by that much. Draw. Repeat.</p>
+  </div>
+  <pre><span class="k">let</span> last = performance.now();
+<span class="k">function</span> <span class="f">loop</span>(now) {
+  <span class="f">requestAnimationFrame</span>(loop);        <span class="c">// 1. book the next frame, always</span>
+  <span class="k">let</span> dt = (now - last) / 1000;        <span class="c">// 2. seconds since last frame (~0.016)</span>
+  last = now;
+  <span class="k">if</span> (dt > 0.05) dt = 0.05;             <span class="c">//    clamp: tab was hidden, don't teleport</span>
+  <span class="f">update</span>(dt);                          <span class="c">// 3. advance STATE: pos += vel*dt</span>
+  <span class="f">draw</span>();                              <span class="c">// 4. repaint from current state</span>
+}
+<span class="f">requestAnimationFrame</span>(loop);             <span class="c">// kick it off</span></pre>
+
+  <p>Four design decisions are hiding in there, and each one is a thing practitioners learned the hard way:</p>
+  <ol class="steps">
+    <li><b>rAF, not setInterval.</b> The browser calls <code>loop</code> in sync with the display's refresh and <em class="key">pauses it entirely</em> when the tab is hidden. You schedule the next frame at the <em>top</em> so the loop is self-sustaining. (<a class="cite" href="https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame" target="_blank">MDN</a>)</li>
+    <li><b>Everything is multiplied by <code>dt</code>.</b> Speed becomes “pixels per <em>second</em>”, not “pixels per <em>frame</em>”. Now 60Hz and 144Hz produce identical real-world speed — the frame just subdivides time more finely. (<a class="cite" href="https://gafferongames.com/post/integration_basics/" target="_blank">Gaffer On Games</a>)</li>
+    <li><b>Clamp <code>dt</code>.</b> Switch tabs for 10 seconds and the next <code>dt</code> would be 10 — every object teleports across the screen. Capping <code>dt</code> trades a little accuracy for never exploding.</li>
+    <li><b>update / draw are split.</b> One function <em>changes</em> the world; the other only <em>reads</em> it to paint. Keep them separate and you can pause (stop calling <code>update</code>, keep calling <code>draw</code>), step one frame, or even run physics at a different rate than rendering.</li>
+  </ol>
+
+  <!-- 3 -->
+  <h2><span class="n">03</span> Practice — a real one, that you control</h2>
+  <p>Below is a <strong>complete, working cursor-grid</strong> — a stripped-down <code>grid.html</code> — running the exact loop above. Move your pointer over it to feel the push. Then use the controls to take the loop apart:</p>
+  <div class="demo">
+    <div class="stage"><canvas id="grid"></canvas></div>
+    <div class="bar">
+      <button class="ctl" id="g-pause">Pause</button>
+      <button class="ctl" id="g-step" disabled>Step 1 frame</button>
+      <button class="ctl" id="g-reset">Reset</button>
+      <span class="spacer"></span>
+      <span class="read">dt <b id="g-dt">–</b> &nbsp; frame <b id="g-fc">0</b></span>
+    </div>
+    <div class="cap"><b>Pause</b> stops <code>update</code> but <code>draw</code> keeps running (the loop is alive — the world just isn't advancing). <b>Step</b> calls <code>update(1/60)</code> exactly once: watch the frame counter tick and the cubes nudge one discrete step. That's all motion is — a flipbook drawn fast.</div>
+  </div>
+
+  <h3>Why <code>dt</code> isn't optional</h3>
+  <p>Two fields, same cube, same speed. <strong>Left</strong> moves with <code>x += speed · dt</code>. <strong>Right</strong> moves a fixed <code>x += step</code> every frame. They're identical at full framerate. Now hit <b>Throttle</b> to simulate frames being dropped (a busy CPU, a heavy page):</p>
+  <div class="demo">
+    <div class="twin">
+      <div class="col"><span class="label"><b>x += speed · dt</b> — correct</span><canvas id="tw-a"></canvas></div>
+      <div class="col"><span class="label"><b>x += step</b> — naive</span><canvas id="tw-b"></canvas></div>
+    </div>
+    <div class="bar">
+      <button class="ctl" id="t-throttle">Throttle frames</button>
+      <button class="ctl" id="t-reset">Reset</button>
+      <span class="spacer"></span>
+      <span class="read">mode <b id="t-mode">60fps</b></span>
+    </div>
+    <div class="cap">Throttled, the <b>dt</b> cube keeps its real-world speed — fewer frames, but each covers more time, so it stays in step. The <b>fixed-step</b> cube simply runs at half speed, because “per frame” silently became “per slower frame”. This is the bug that makes animations feel different on every machine — and why every line in <code>grid.html</code>'s <code>update</code> ends in <code>* dt</code>.</div>
+  </div>
+
+  <h3>The whole skeleton, annotated</h3>
+  <p>This is the entirety of what drives the live demo above — setup, loop, and the two halves. Read it as the template for <em class="key">any</em> canvas UI:</p>
+  <pre><span class="c">// --- SETUP (once) ---</span>
+<span class="k">const</span> ctx = canvas.getContext('2d');
+<span class="k">function</span> <span class="f">resize</span>() {                 <span class="c">// crispness: back the canvas with real device pixels</span>
+  <span class="k">const</span> dpr = Math.min(devicePixelRatio, 2);
+  canvas.width  = cssW * dpr;
+  canvas.height = cssH * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);  <span class="c">// now you draw in CSS pixels, sharp on retina</span>
+}
+
+<span class="c">// --- UPDATE (advance state) ---</span>
+<span class="k">function</span> <span class="f">update</span>(dt) {
+  <span class="k">for</span> (<span class="k">const</span> c <span class="k">of</span> cubes) {
+    <span class="k">if</span> (pointer.active) {                 <span class="c">// distance-based force — the part CSS can't do</span>
+      <span class="k">const</span> dx = c.x - pointer.x, dy = c.y - pointer.y;
+      <span class="k">const</span> dist = Math.hypot(dx, dy);
+      <span class="k">if</span> (dist &lt; R) { <span class="k">const</span> f = (1 - dist/R) ** 2 * PUSH;
+        c.vx += dx/dist * f * dt; c.vy += dy/dist * f * dt; }
+    }
+    c.vx *= Math.exp(-3.2 * dt);          <span class="c">// damping = the spring-back "memory"</span>
+    c.vy *= Math.exp(-3.2 * dt);
+    c.x += (DRIFT_X + c.vx) * dt;          <span class="c">// integrate: drift + push, scaled by dt</span>
+    c.y += (DRIFT_Y + c.vy) * dt;
+    wrap(c);                               <span class="c">// re-enter from the opposite edge</span>
+  }
+}
+
+<span class="c">// --- DRAW (read state, paint) ---</span>
+<span class="k">function</span> <span class="f">draw</span>() {
+  ctx.fillStyle = '#0a0a0b'; ctx.fillRect(0, 0, cssW, cssH);  <span class="c">// clear</span>
+  <span class="k">for</span> (<span class="k">const</span> c <span class="k">of</span> cubes) <span class="f">drawCube</span>(c.x, c.y);          <span class="c">// no layout cost — just pixels</span>
+}</pre>
+  <p>That's it. Map it back to <code>grid.html</code>: its <code>loop()</code> is beat-for-beat this, <code>uGrid()</code> is this <code>update</code>, and its <code>draw()</code> is this <code>draw</code> with a prettier sprite. The seven modes are just seven different <code>update</code> functions sharing one loop.</p>
+
+  <!-- 4 -->
+  <h2><span class="n">04</span> Boundaries</h2>
+  <ul class="clean">
+    <li><strong>Don't loop for a function of time.</strong> If state never accumulates — a constant spin, a one-shot fade — you don't need this machine; CSS (Lesson 01) is lighter and runs off the main thread.</li>
+    <li><strong>The fixed-timestep upgrade.</strong> The variable <code>dt</code> here is perfect for visual effects. The moment physics must be <em>deterministic or stable</em> (games, springs that mustn't blow up), you separate a fixed-step <code>update</code> from a variable-rate <code>draw</code> and interpolate between them — the well-known <a class="cite" href="https://gafferongames.com/post/fix_your_timestep/" target="_blank">“Fix Your Timestep”</a> pattern. Same skeleton, smarter middle.</li>
+    <li><strong>Next door — the force field itself.</strong> You've now seen the <code>update</code> body but not <em>why</em> those force/damping numbers behave like a spring. <strong>Lesson 03</strong> opens up that <code>vx += force·dt; vx *= exp(-k·dt)</code> pair — the actual feel of the push.</li>
+  </ul>
+
+  <!-- 5 -->
+  <h2><span class="n">05</span> Why this matters for your mission</h2>
+  <p>You wanted to understand how these UIs are <em class="key">actually built</em>. The honest answer is anticlimactic in the best way: there is no magic, there's one loop. <code>requestAnimationFrame</code> for timing, <code>dt</code> for fairness across hardware, and a clean split between changing the world and drawing it. Every cursor-grid, particle field, fluid sim, and physics toy you'll meet is this same four-beat heartbeat with a different <code>update</code>. Open <code>grid.html</code>, find <code>loop = () =&gt;</code> near the middle, and you'll now read it as old news — which is exactly the goal.</p>
+
+  <div class="ask">
+    <b>I'm your teacher — ask me anything.</b> Want me to add the <em>wrap</em> or <em>sprite</em> details? Curious why <code>requestAnimationFrame</code> passes a timestamp instead of you calling <code>performance.now()</code>? Want to try writing your own <code>update</code> for a different behaviour and have me review it? Say the word.
+  </div>
+
+  <div class="footer">
+    <a href="0001-css-infinite-drift.html">← Lesson 01 · The infinite drift</a>
+    <a href="../reference/css-vs-canvas.html">Reference: the loop pattern →</a>
+  </div>
+
+</div>
+
+<script>
+const CUBE = "M457.43,125.94L244.42,2.96c-6.84-3.95-15.28-3.95-22.12,0L9.3,125.94c-5.75,3.32-9.3,9.46-9.3,16.11v247.99c0,6.65,3.55,12.79,9.3,16.11l213.01,122.98c6.84,3.95,15.28,3.95,22.12,0l213.01-122.98c5.75-3.32,9.3-9.46,9.3-16.11v-247.99c0-6.65-3.55-12.79-9.3-16.11h-.01ZM444.05,151.99l-205.63,356.16c-1.39,2.4-5.06,1.42-5.06-1.36v-233.21c0-4.66-2.49-8.97-6.53-11.31L24.87,145.67c-2.4-1.39-1.42-5.06,1.36-5.06h411.26c5.84,0,9.49,6.33,6.57,11.39h-.01Z";
+const cubePath = new Path2D(CUBE);
+const drawCubeAt = (ctx, x, y, px) => {        // px = target on-screen height in px
+  const s = px / 532.09;
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.translate(-233.36, -266.04);
+  ctx.fillStyle = '#f5f5f6'; ctx.shadowColor = 'rgba(150,180,255,0.45)'; ctx.shadowBlur = 6/s;
+  ctx.fill(cubePath); ctx.restore();
+};
+
+/* ============ Demo 1: the live grid ============ */
+(function () {
+  const cv = document.getElementById('grid'), ctx = cv.getContext('2d');
+  const dtEl = document.getElementById('g-dt'), fcEl = document.getElementById('g-fc');
+  const pauseB = document.getElementById('g-pause'), stepB = document.getElementById('g-step'), resetB = document.getElementById('g-reset');
+  let W = 0, H = 0, cubes = [], pointer = { x: 0, y: 0, active: false }, frames = 0;
+  const PAD = 60, DRIFT_X = 16, DRIFT_Y = 10, R = 130, PUSH = 2600;
+
+  function layout() {
+    cubes = [];
+    const gp = 78, spanX = W + gp * 2, spanY = H + gp * 2;
+    const cols = Math.max(2, Math.round(spanX / gp)), rows = Math.max(2, Math.round(spanY / gp));
+    const sx = spanX / cols, sy = spanY / rows;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
+      cubes.push({ x: -gp + c * sx, y: -gp + r * sy, vx: 0, vy: 0 });
+    cv._span = { x: spanX, y: spanY };
+  }
+  function fit() {
+    const dpr = Math.min(devicePixelRatio || 1, 2), r = cv.getBoundingClientRect();
+    W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); layout();
+  }
+  function update(dt) {
+    const sp = cv._span;
+    for (const c of cubes) {
+      if (pointer.active) {
+        const dx = c.x - pointer.x, dy = c.y - pointer.y, dist = Math.hypot(dx, dy) || 0.01;
+        if (dist < R) { const f = (1 - dist / R) ** 2 * PUSH; c.vx += dx / dist * f * dt; c.vy += dy / dist * f * dt; }
+      }
+      c.vx *= Math.exp(-3.2 * dt); c.vy *= Math.exp(-3.2 * dt);
+      c.x += (DRIFT_X + c.vx) * dt; c.y += (DRIFT_Y + c.vy) * dt;
+      if (c.x > W + PAD) c.x -= sp.x; if (c.x < -PAD) c.x += sp.x;
+      if (c.y > H + PAD) c.y -= sp.y; if (c.y < -PAD) c.y += sp.y;
+    }
+  }
+  function draw() {
+    ctx.fillStyle = '#060607'; ctx.fillRect(0, 0, W, H);
+    for (const c of cubes) drawCubeAt(ctx, c.x, c.y, 26);
+  }
+
+  let running = true, last = performance.now();
+  function loop(now) {
+    requestAnimationFrame(loop);
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.05) dt = 0.05;
+    if (running) { update(dt); frames++; }
+    draw();
+    dtEl.textContent = (dt * 1000).toFixed(1) + ' ms';
+    fcEl.textContent = frames;
+  }
+  pauseB.onclick = () => {
+    running = !running;
+    pauseB.textContent = running ? 'Pause' : 'Resume'; pauseB.classList.toggle('on', !running);
+    stepB.disabled = running; last = performance.now();
+  };
+  stepB.onclick = () => { if (!running) { update(1 / 60); frames++; draw(); fcEl.textContent = frames; } };
+  resetB.onclick = () => { frames = 0; layout(); };
+
+  cv.addEventListener('pointermove', e => { const r = cv.getBoundingClientRect(); pointer.x = e.clientX - r.left; pointer.y = e.clientY - r.top; pointer.active = true; });
+  cv.addEventListener('pointerleave', () => pointer.active = false);
+  window.addEventListener('resize', fit);
+  fit(); requestAnimationFrame(loop);
+})();
+
+/* ============ Demo 2: dt vs fixed step ============ */
+(function () {
+  const a = document.getElementById('tw-a'), b = document.getElementById('tw-b');
+  const ca = a.getContext('2d'), cb = b.getContext('2d');
+  const modeEl = document.getElementById('t-mode');
+  const throB = document.getElementById('t-throttle'), resetB = document.getElementById('t-reset');
+  let W = 0, H = 0, ax = 30, bx = 30, throttle = false, tick = 0, lastProc = performance.now();
+  const SPEED = 70, STEP = SPEED / 60;          // equal at 60fps
+
+  function fit() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    [a, b].forEach((cv, i) => {
+      const r = cv.getBoundingClientRect(); W = r.width; H = r.height;
+      cv.width = W * dpr; cv.height = H * dpr;
+      (i ? cb : ca).setTransform(dpr, 0, 0, dpr, 0, 0);
+    });
+  }
+  function paint(ctx, x) {
+    ctx.fillStyle = '#060607'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.beginPath(); ctx.moveTo(0, H / 2 + 14); ctx.lineTo(W, H / 2 + 14); ctx.stroke();
+    drawCubeAt(ctx, x, H / 2 + 2, 30);
+  }
+  function loop(now) {
+    requestAnimationFrame(loop);
+    tick++;
+    if (throttle && (tick & 1)) return;          // drop every other processed frame
+    let dt = (now - lastProc) / 1000; lastProc = now;
+    if (dt > 0.1) dt = 0.1;
+    ax += SPEED * dt;          // correct: per second
+    bx += STEP;                // naive: per frame
+    const wrapX = W + 24;
+    if (ax > wrapX) ax = -24; if (bx > wrapX) bx = -24;
+    paint(ca, ax); paint(cb, bx);
+  }
+  throB.onclick = () => { throttle = !throttle; throB.classList.toggle('on', throttle); modeEl.textContent = throttle ? '~30fps (throttled)' : '60fps'; lastProc = performance.now(); };
+  resetB.onclick = () => { ax = bx = 30; };
+  window.addEventListener('resize', fit);
+  fit(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
