@@ -8,9 +8,9 @@ export default function OpenAIDriftPage() {
       src="/openai-black-monoblossom-spacious.svg"
       title="OpenAI"
       description="A seamless monoblossom pattern that drifts slowly behind the hero, keeping the page gently alive."
-      tile={112}
-      speed={14}
-      steps={[2, 1]}
+      tile={400}
+      speed={15}
+      steps={[0, 1]}
     />
   )
 }

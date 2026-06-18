@@ -9,8 +9,8 @@ export default function OpenAISpritesPage() {
       title="OpenAI"
       description="A field of OpenAI marks that drifts and springs away from your pointer, giving the hero a soft, playful sense of life."
       size={30}
-      density={0.9}
-      speed={0.85}
+      density={0.1}
+      speed={0.2}
       pushRadius={170}
     />
   )
