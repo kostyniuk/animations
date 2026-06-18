@@ -7,7 +7,7 @@ export default function CursorSpritesPage() {
       mode="sprites"
       src="/cube.svg"
       title="Cursor"
-      description="A responsive field of Cursor marks that drifts quietly, then gives way to the pointer for a subtle interactive hero surface."
+      description="A field of Cursor marks that drifts quietly and parts around your pointer, turning the hero into a subtle interactive surface."
       size={24}
       density={1}
       speed={1}

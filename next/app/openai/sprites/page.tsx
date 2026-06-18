@@ -7,7 +7,7 @@ export default function OpenAISpritesPage() {
       mode="sprites"
       src="/openai-black-monoblossom.svg"
       title="OpenAI"
-      description="A responsive field of OpenAI marks that drifts and springs away from the pointer for a subtle interactive hero backdrop."
+      description="A field of OpenAI marks that drifts and springs away from your pointer, giving the hero a soft, playful sense of life."
       size={30}
       density={0.9}
       speed={0.85}

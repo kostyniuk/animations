@@ -4,6 +4,7 @@ import { DriftField } from "@/components/drift-field"
 import { SpriteField } from "@/components/sprite-field"
 // import { GlassScrimCard } from "@/components/ui/glasscn/glass-scrim-card"
 import { GlassCard } from "@/components/ui/glasscn/glass-card"
+import { HighlightText } from "@/components/ui/highlight-text"
 import { cn } from "@/lib/utils"
 
 type Brand = "cursor" | "openai"
@@ -47,10 +48,10 @@ const brandStyles = {
     button:
       "border-white/10 bg-white/10 text-white/75 hover:bg-white/15 hover:text-white",
     mark: "/cube.svg",
-    markChip: "border-white/12 bg-white/[0.07]",
+    markChip: "border-white/30 bg-black/80",
     card: "text-white",
     cardEyebrow: "text-white/62",
-    cardDescription: "text-white/72",
+    cardDescription: "text-black/72",
     cardButton:
       "border-white/15 bg-white/10 text-white/78 hover:bg-white/16 hover:text-white",
     driftOverlay:
@@ -67,7 +68,7 @@ const brandStyles = {
     button:
       "border-black/10 bg-black/10 text-black/70 hover:bg-black/15 hover:text-black",
     mark: "/openai-black-monoblossom.svg",
-    markChip: "border-black/10 bg-black/[0.04]",
+    markChip: "border-black/30 bg-white/80",
     card: "text-black",
     cardEyebrow: "text-black/66",
     cardDescription: "text-black/74",
@@ -142,8 +143,8 @@ export function BackgroundExamplePage(props: BackgroundExamplePageProps) {
         > */}
         <GlassCard
           className={cn(
-            "items-center px-6 py-7 text-center sm:px-8 sm:py-8 md:px-10",
-            "max-w-[min(48rem,calc(100vw-2rem))]",
+            "items-center px-5 py-6 text-center sm:px-6 sm:py-7 md:px-8",
+            "max-w-[min(36rem,calc(100vw-2rem))]",
             styles.card
           )}
           surfaceClassName="rounded-[2rem] sm:rounded-[2.5rem]"
@@ -165,7 +166,7 @@ export function BackgroundExamplePage(props: BackgroundExamplePageProps) {
           </span>
           <h1
             className={cn(
-              "mt-6 text-[clamp(3rem,10vw,8rem)] leading-[0.85]",
+              "mt-5 text-[clamp(2.25rem,7vw,5rem)] leading-[0.9]",
               styles.title
             )}
           >
@@ -177,7 +178,14 @@ export function BackgroundExamplePage(props: BackgroundExamplePageProps) {
               styles.cardDescription
             )}
           >
-            {props.description}
+            <HighlightText
+              className={
+                props.brand === "openai" ? "!bg-[#10A37F]" : "!bg-[#f54e00]"
+              }
+              textClassName={props.brand === "cursor" ? "text-white/95" : undefined}
+            >
+              {props.description}
+            </HighlightText>
           </p>
           <Link
             href="/"
